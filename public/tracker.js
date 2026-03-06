@@ -1,6 +1,6 @@
 (function () {
 
-  const endpoint = "http://localhost:4000/track";
+  const endpoint = "https://monitor.creonox.com/data/track";
   const originalFetch = window.fetch;
 
   let lastEvent = {};
