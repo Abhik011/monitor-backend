@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 
-const EventSchema = new mongoose.Schema({
+const EventSchema = new mongoose.Schema(
+{
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Project",
+    index: true
+  },
 
   type: String,
   message: String,
@@ -8,11 +14,27 @@ const EventSchema = new mongoose.Schema({
   status: Number,
   latency: Number,
   page: String,
-  url: String,
+
   ip: String,
   country: String,
-  userAgent: String
 
-}, { timestamps: true });
+  fingerprint: String,
+
+  sessionId: String,
+  userId: String,
+
+  userAgent: String,
+
+  metadata: Object
+},
+{
+  timestamps: true
+});
+
+/* INDEXES */
+
+EventSchema.index({ projectId: 1, createdAt: -1 });
+EventSchema.index({ type: 1 });
+EventSchema.index({ fingerprint: 1 });
 
 module.exports = mongoose.model("Event", EventSchema);

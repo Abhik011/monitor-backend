@@ -1,90 +1,116 @@
 const express = require("express");
 const router = express.Router();
 const geoip = require("geoip-lite");
-
+const crypto = require("crypto");
+const Project = require("../models/Project");
 const Event = require("../models/Event");
 
-router.post("/", async (req, res) => {
+/* -----------------------------
+   CLIENT IP
+----------------------------- */
+
+function getClientIP(req) {
+
+  let ip =
+    req.headers["cf-connecting-ip"] ||
+    req.headers["x-real-ip"] ||
+    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.socket.remoteAddress ||
+    req.ip;
+
+  if (ip && ip.includes("::ffff:")) {
+    ip = ip.replace("::ffff:", "");
+  }
+
+  return ip;
+}
+
+/* -----------------------------
+   FINGERPRINT
+----------------------------- */
+
+function createFingerprint(body) {
+
+  const base =
+    body.type +
+    (body.message || "") +
+    (body.api || "") +
+    (body.page || "");
+
+  return crypto
+    .createHash("md5")
+    .update(base)
+    .digest("hex");
+}
+
+/* -----------------------------
+   TRACK EVENT
+----------------------------- */
+router.post("/:apiKey", async (req, res) => {
+
+  console.log("BODY:", req.body);
 
   try {
+    if (typeof req.body === "string") {
+      req.body = JSON.parse(req.body);
+    }
+    const { apiKey } = req.params;
 
-    /* -----------------------------
-       GET REAL CLIENT IP
-    ----------------------------- */
+    const project = await Project.findOne({ apiKey });
 
-    let ip =
-      req.headers["x-forwarded-for"]?.split(",")[0] ||
-      req.socket.remoteAddress ||
-      req.ip;
-
-    // remove IPv6 prefix
-    if (ip && ip.includes("::ffff:")) {
-      ip = ip.replace("::ffff:", "");
+    if (!project) {
+      return res.status(401).json({ error: "Invalid API key" });
     }
 
-    /* -----------------------------
-       GEO LOOKUP
-    ----------------------------- */
+    let events = req.body.events || [req.body];
+
+    if (!Array.isArray(events)) {
+      events = [events];
+    }
+
+    const ip = getClientIP(req);
 
     const geo = geoip.lookup(ip);
-
     const country = geo?.country || "Unknown";
 
-    /* -----------------------------
-       PREVENT DUPLICATE EVENTS
-    ----------------------------- */
+    const io = req.app.get("io");
 
-    const recent = await Event.findOne({
-      type: req.body.type,
-      page: req.body.page,
-      ip,
-      createdAt: { $gt: new Date(Date.now() - 3000) }
-    });
+    let stored = 0;
 
-    if (recent) {
-      return res.json({ skipped: true });
-    }
+    for (const body of events) {
 
-    /* -----------------------------
-       SAVE EVENT
-    ----------------------------- */
+      if (!body.type) continue;
 
-    const event = await Event.create({
-      ...req.body,
-      ip,
-      country
-    });
+      const fingerprint = createFingerprint(body);
 
-    /* -----------------------------
-       SERVER LOGGING
-    ----------------------------- */
+      const recent = await Event.findOne({
+        projectId: project._id,
+        fingerprint,
+        ip,
+        createdAt: {
+          $gt: new Date(Date.now() - 3000)
+        }
+      });
 
-    if (req.body.type === "error") {
+      if (recent) continue;
 
-      console.log("\n🚨 ERROR");
-      console.log(req.body.message);
-      console.log(req.body.page);
-      console.log("Country:", country);
+      const event = await Event.create({
+        ...body,
+        projectId: project._id,
+        ip,
+        country,
+        fingerprint
+      });
 
-    }
+      stored++;
 
-    if (req.body.type === "api" && req.body.latency > 2000) {
-
-      console.log("\n🐢 SLOW API");
-      console.log(req.body.api);
-      console.log(req.body.latency + "ms");
+      if (io) {
+        io.emit("new-event", event);
+      }
 
     }
 
-    if (req.body.type === "api_error") {
-
-      console.log("\n❌ API ERROR");
-      console.log(req.body.api);
-      console.log(req.body.message);
-
-    }
-
-    res.json({ success: true });
+    res.json({ success: true, stored });
 
   } catch (err) {
 
@@ -95,28 +121,99 @@ router.post("/", async (req, res) => {
   }
 
 });
-
-
-/* GET EVENTS */
-
+/* -----------------------------
+   GET EVENTS
+----------------------------- */
 router.get("/", async (req, res) => {
 
   try {
 
-    const { type } = req.query;
+    const {
+      type,
+      page,
+      country,
+      limit = 100,
+      skip = 0
+    } = req.query;
 
-    const query = type ? { type } : {};
+    const query = {};
+
+    if (type) query.type = type;
+    if (page) query.page = page;
+    if (country) query.country = country;
 
     const events = await Event
       .find(query)
       .sort({ createdAt: -1 })
-      .limit(100);
+      .skip(Number(skip))
+      .limit(Number(limit));
 
-    res.json(events);
+    const total = await Event.countDocuments(query);
+
+    res.json({
+      total,
+      events
+    });
 
   } catch (err) {
 
-    console.error("FETCH ERROR", err);
+    console.error(err);
+
+    res.status(500).json({ success: false });
+
+  }
+
+});
+/* -----------------------------
+   ERRORS BY COUNTRY
+----------------------------- */
+router.get("/errors-by-country", async (req, res) => {
+
+  try {
+
+    const data = await Event.aggregate([
+      { $match: { type: "error" } },
+      {
+        $group: {
+          _id: "$country",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json(data);
+
+  } catch (err) {
+
+    res.status(500).json({ success: false });
+
+  }
+
+});
+/* -----------------------------
+   ERROR GROUPS
+----------------------------- */
+router.get("/error-groups", async (req, res) => {
+
+  try {
+
+    const groups = await Event.aggregate([
+      { $match: { type: "error" } },
+      {
+        $group: {
+          _id: "$fingerprint",
+          message: { $first: "$message" },
+          count: { $sum: 1 },
+          lastSeen: { $max: "$createdAt" }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 50 }
+    ]);
+
+    res.json(groups);
+
+  } catch (err) {
 
     res.status(500).json({ success: false });
 
