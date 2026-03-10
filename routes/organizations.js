@@ -11,3 +11,5 @@ router.get("/organizations/:id", auth, async (req,res)=>{
   res.json(org);
 
 });
+
+module.exports = router;
