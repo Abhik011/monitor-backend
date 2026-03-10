@@ -44,7 +44,7 @@
       apiKey = config.apiKey;
 
       endpoint =
-        (config.endpoint || "https://monitor.creonox.com/track") +
+        (config.endpoint || "https://monitor.creonox.com/data/track") +
         "/" +
         apiKey;
 
@@ -112,7 +112,7 @@
       if (navigator.sendBeacon) {
 
         const blob = new Blob([payload], {
-         type: "text/plain"
+          type: "text/plain"
         });
 
         navigator.sendBeacon(endpoint, blob);
@@ -131,7 +131,7 @@
 
       }
 
-    } catch (e) {}
+    } catch (e) { }
 
   }
 
@@ -148,6 +148,25 @@
   console.log("📡 Creonox SDK Initialized");
 
   /* -----------------------------
+     ERROR FINGERPRINT
+  ----------------------------- */
+
+  function generateErrorFingerprint(message, stack) {
+
+    const base = message + (stack || "");
+
+    let hash = 0;
+
+    for (let i = 0; i < base.length; i++) {
+      hash = ((hash << 5) - hash) + base.charCodeAt(i);
+      hash |= 0;
+    }
+
+    return "err_" + Math.abs(hash);
+
+  }
+
+  /* -----------------------------
      JS ERRORS
   ----------------------------- */
 
@@ -159,7 +178,8 @@
       source,
       line,
       column,
-      stack: error?.stack
+      stack: error?.stack,
+      fingerprint: generateErrorFingerprint(message, error?.stack)
     });
 
   };
@@ -173,7 +193,11 @@
     queueEvent({
       type: "promise_error",
       message: event.reason?.message || "Unhandled promise rejection",
-      stack: event.reason?.stack
+      stack: event.reason?.stack,
+      fingerprint: generateErrorFingerprint(
+        event.reason?.message,
+        event.reason?.stack
+      )
     });
 
   });
@@ -263,6 +287,59 @@
       class: el.className?.toString()
     });
 
+  });
+  /* -----------------------------
+   RAGE CLICK DETECTION
+----------------------------- */
+
+  let clickBuffer = [];
+
+  document.addEventListener("click", function (e) {
+
+    const now = Date.now();
+
+    clickBuffer.push(now);
+
+    // keep last 1 second clicks
+    clickBuffer = clickBuffer.filter(t => now - t < 1000);
+
+    if (clickBuffer.length >= 5) {
+
+      queueEvent({
+        type: "rage_click",
+        tag: e.target.tagName,
+        id: e.target.id,
+        class: e.target.className?.toString()
+      });
+
+      clickBuffer = [];
+
+    }
+
+  });
+
+  /* -----------------------------
+   SESSION REPLAY
+----------------------------- */
+
+  const observer = new MutationObserver((mutations) => {
+
+    mutations.forEach((mutation) => {
+
+      queueEvent({
+        type: "dom_mutation",
+        target: mutation.target?.nodeName,
+        change: mutation.type
+      });
+
+    });
+
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true
   });
 
   /* -----------------------------

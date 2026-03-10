@@ -49,9 +49,24 @@ router.post("/", auth, async (req, res) => {
 
 router.get("/", auth, async (req, res) => {
 
-  const projects = await Project.find();
+  try {
 
-  res.json({ projects });
+    const organizationId = req.query.organizationId;
+
+    if (!organizationId) {
+      return res.status(400).json({ error: "organizationId required" });
+    }
+
+    const projects = await Project.find({ organizationId });
+
+    res.json({ projects });
+
+  } catch (err) {
+
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch projects" });
+
+  }
 
 });
 
