@@ -10,27 +10,27 @@ const Organization = require("../models/Organization");
    SIGNUP
 ----------------------------- */
 
-router.post("/signup", async (req,res)=>{
+router.post("/signup", async (req, res) => {
 
-  try{
+  try {
 
-    const {email,password,name,organizationName} = req.body;
+    const { email, password, name, organizationName } = req.body;
 
-    if(!email || !password){
-      return res.status(400).json({error:"Missing fields"});
+    if (!email || !password) {
+      return res.status(400).json({ error: "Missing fields" });
     }
 
-    const existing = await User.findOne({email});
+    const existing = await User.findOne({ email });
 
-    if(existing){
-      return res.status(400).json({error:"User exists"});
+    if (existing) {
+      return res.status(400).json({ error: "User exists" });
     }
 
-    const hashed = await bcrypt.hash(password,10);
+    const hashed = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       email,
-      password:hashed,
+      password: hashed,
       name
     });
 
@@ -40,7 +40,10 @@ router.post("/signup", async (req,res)=>{
     });
 
     const token = jwt.sign(
-      {userId:user._id},
+      {
+        userId: user._id,
+        organizationId: org._id
+      },
       process.env.JWT_SECRET || "secret"
     );
 
@@ -49,11 +52,11 @@ router.post("/signup", async (req,res)=>{
       organizationId: org._id
     });
 
-  }catch(err){
+  } catch (err) {
 
     console.error(err);
 
-    res.status(500).json({error:"Signup failed"});
+    res.status(500).json({ error: "Signup failed" });
 
   }
 
@@ -63,34 +66,37 @@ router.post("/signup", async (req,res)=>{
    LOGIN
 ----------------------------- */
 
-router.post("/login", async (req,res)=>{
+router.post("/login", async (req, res) => {
 
-  try{
+  try {
 
-    const {email,password} = req.body;
+    const { email, password } = req.body;
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
-    if(!user){
-      return res.status(400).json({error:"Invalid credentials"});
+    if (!user) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    const valid = await bcrypt.compare(password,user.password);
+    const valid = await bcrypt.compare(password, user.password);
 
-    if(!valid){
-      return res.status(400).json({error:"Invalid credentials"});
+    if (!valid) {
+      return res.status(400).json({ error: "Invalid credentials" });
     }
 
     const token = jwt.sign(
-      {userId:user._id},
+      {
+         userId: user._id,
+        organizationId: user.organizationId
+      },
       process.env.JWT_SECRET || "secret"
     );
 
-    res.json({token});
+    res.json({ token });
 
-  }catch(err){
+  } catch (err) {
 
-    res.status(500).json({error:"Login failed"});
+    res.status(500).json({ error: "Login failed" });
 
   }
 
