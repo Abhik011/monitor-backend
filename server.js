@@ -13,6 +13,7 @@ const trackRoutes = require("./routes/track");
 const authRoutes = require("./routes/auth");
 const projectRoutes = require("./routes/projects");
 const eventRoutes = require("./routes/events");
+const organizations =require("./routes/organizations")
 
 const app = express();
 const server = http.createServer(app);
@@ -101,7 +102,7 @@ app.use("/track", limiter, trackRoutes);
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/events", eventRoutes);
-
+app.use("/organizations", organizations);
 /* -----------------------------
    DATABASE
 ----------------------------- */
