@@ -9,7 +9,6 @@ const Organization = require("../models/Organization");
 /* -----------------------------
    SIGNUP
 ----------------------------- */
-
 router.post("/signup", async (req, res) => {
 
   try {
@@ -39,6 +38,11 @@ router.post("/signup", async (req, res) => {
       ownerId: user._id
     });
 
+    /* LINK USER TO ORGANIZATION */
+
+    user.organizationId = org._id;
+    await user.save();
+
     const token = jwt.sign(
       {
         userId: user._id,
@@ -61,11 +65,9 @@ router.post("/signup", async (req, res) => {
   }
 
 });
-
 /* -----------------------------
    LOGIN
 ----------------------------- */
-
 router.post("/login", async (req, res) => {
 
   try {
