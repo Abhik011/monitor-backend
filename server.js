@@ -30,8 +30,9 @@ app.use("/data", express.static(path.join(__dirname, "data")));
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET","POST"]
+  },
+  transports: ["websocket","polling"]
 });
 
 app.set("io", io);
