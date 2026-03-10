@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
 const Organization = require("../models/Organization");
+const Project = require("../models/Project")
 
 /* -----------------------------
    SIGNUP
@@ -88,16 +89,27 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign(
       {
-         userId: user._id,
+        userId: user._id,
         organizationId: user.organizationId
       },
-      process.env.JWT_SECRET || "secret"
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "7d" }
     );
 
-    res.json({ token });
+    // load projects for faster dashboard boot
+    const projects = await Project.find({
+      organizationId: user.organizationId
+    });
+
+    res.json({
+      token,
+      organizationId: user.organizationId,
+      projects
+    });
 
   } catch (err) {
 
+    console.error(err);
     res.status(500).json({ error: "Login failed" });
 
   }
