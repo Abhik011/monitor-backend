@@ -4,7 +4,8 @@ const geoip = require("geoip-lite");
 const crypto = require("crypto");
 const Project = require("../models/Project");
 const Event = require("../models/Event");
-
+const PLANS = require("../config/plans");
+const Organization = require("../models/Organization");
 /* -----------------------------
    CLIENT IP
 ----------------------------- */
@@ -43,6 +44,7 @@ function createFingerprint(body) {
     .digest("hex");
 }
 
+
 /* -----------------------------
    TRACK EVENT
 ----------------------------- */
@@ -60,6 +62,17 @@ router.post("/:apiKey", async (req, res) => {
 
     if (!project) {
       return res.status(401).json({ error: "Invalid API key" });
+    }
+
+    const org = await Organization.findById(project.organizationId);
+
+    const limit = PLANS[org.plan].events;
+
+    if (org.usage.events >= limit) {
+      return res.status(429).json({
+        error: "Plan event limit reached",
+        upgrade: true
+      });
     }
 
     let events = req.body.events || [req.body];
@@ -103,6 +116,11 @@ router.post("/:apiKey", async (req, res) => {
       });
 
       stored++;
+
+      await Organization.findByIdAndUpdate(
+        project.organizationId,
+        { $inc: { "usage.events": 1 } }
+      );
 
       if (io) {
         io.emit("new-event", event);

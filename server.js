@@ -14,6 +14,9 @@ const authRoutes = require("./routes/auth");
 const projectRoutes = require("./routes/projects");
 const eventRoutes = require("./routes/events");
 const organizations =require("./routes/organizations")
+const plansRoutes = require("./routes/plans");
+const billingRoutes = require("./routes/billing");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -97,7 +100,8 @@ const limiter = rateLimit({
 /* -----------------------------
    ROUTES
 ----------------------------- */
-
+app.use("/billing", billingRoutes);
+app.use("/plans", plansRoutes);
 app.use("/track", limiter, trackRoutes);
 app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
