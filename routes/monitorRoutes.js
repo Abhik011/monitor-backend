@@ -52,8 +52,16 @@ router.post("/", async (req, res) => {
   }
 
 });
+router.get("/:id/logs", async (req, res) => {
 
+  const logs = await MonitorLog
+    .find({ monitorId: req.params.id })
+    .sort({ createdAt: -1 })
+    .limit(50);
 
+  res.json({ data: logs });
+
+});
 /*
 GET ALL MONITORS
 GET /api/monitors

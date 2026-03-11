@@ -39,7 +39,12 @@ async function runChecks() {
     try {
 
       const response = await axios.get(monitor.url, {
-        timeout: monitor.timeout * 1000
+        timeout: (monitor.timeout || 10) * 1000,
+        maxRedirects: 5,
+        headers: {
+          "User-Agent": "Creonox Monitor Bot"
+        },
+        validateStatus: () => true
       });
 
       const responseTime = Date.now() - start;
@@ -83,7 +88,7 @@ async function runChecks() {
       console.log(`✅ ${monitor.url} UP (${responseTime}ms)`);
 
     } catch (error) {
-
+    console.log("Error:", error.message);
       const updatedFailureCount = (monitor.failureCount || 0) + 1;
 
       await MonitorLog.create({

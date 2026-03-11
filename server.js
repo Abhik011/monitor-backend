@@ -134,7 +134,7 @@ io.on("connection", (socket) => {
 /* -----------------------------
    START SERVER
 ----------------------------- */
-
+require("./workers/monitorWorker");
 const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
