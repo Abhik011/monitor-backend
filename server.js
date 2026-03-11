@@ -13,10 +13,12 @@ const trackRoutes = require("./routes/track");
 const authRoutes = require("./routes/auth");
 const projectRoutes = require("./routes/projects");
 const eventRoutes = require("./routes/events");
-const organizations =require("./routes/organizations")
+const organizations = require("./routes/organizations")
 const plansRoutes = require("./routes/plans");
 const billingRoutes = require("./routes/billing");
-
+const monitorRoutes = require("./routes/monitorRoutes");
+const statusRoutes = require("./routes/statusRoutes");
+const incidentRoutes = require("./routes/incidentRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -32,11 +34,11 @@ app.use("/data", express.static(path.join(__dirname, "data")));
 ----------------------------- */
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET","POST"]
-  },
-  transports: ["websocket","polling"]
+   cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+   },
+   transports: ["websocket", "polling"]
 });
 
 app.set("io", io);
@@ -47,15 +49,15 @@ app.set("io", io);
 
 app.use((req, res, next) => {
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+   res.setHeader("Access-Control-Allow-Origin", "*");
+   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
+   if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+   }
 
-  next();
+   next();
 
 });
 
@@ -76,10 +78,10 @@ app.use(express.text({ type: "*/*" }));
 ----------------------------- */
 
 app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    crossOriginEmbedderPolicy: false
-  })
+   helmet({
+      crossOriginResourcePolicy: false,
+      crossOriginEmbedderPolicy: false
+   })
 );
 
 /* -----------------------------
@@ -93,13 +95,18 @@ app.use(compression());
 ----------------------------- */
 
 const limiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 2000
+   windowMs: 60 * 1000,
+   max: 2000
 });
 
 /* -----------------------------
    ROUTES
 ----------------------------- */
+
+
+app.use("/api/incidents", incidentRoutes);
+app.use("/status", statusRoutes);
+app.use("/api/monitors", monitorRoutes);
 app.use("/billing", billingRoutes);
 app.use("/plans", plansRoutes);
 app.use("/track", limiter, trackRoutes);
@@ -112,16 +119,16 @@ app.use("/organizations", organizations);
 ----------------------------- */
 
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+   .connect(process.env.MONGO_URI)
+   .then(() => console.log("✅ MongoDB connected"))
+   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 /* -----------------------------
    SOCKET CONNECTION
 ----------------------------- */
 
 io.on("connection", (socket) => {
-  console.log("📡 Dashboard connected:", socket.id);
+   console.log("📡 Dashboard connected:", socket.id);
 });
 
 /* -----------------------------
@@ -131,5 +138,5 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 4000;
 
 server.listen(PORT, () => {
-  console.log(`🚀 Monitoring server running on port ${PORT}`);
+   console.log(`🚀 Monitoring server running on port ${PORT}`);
 });
