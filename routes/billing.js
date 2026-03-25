@@ -3,7 +3,6 @@ const router = express.Router();
 
 const Organization = require("../models/Organization");
 const auth = require("../middleware/auth");
-const VALID_PLANS = ["FREE","STARTUP","GROWTH","BUSINESS"];
 const PLANS = require("../config/plans");
 const razorpay = require("../config/razorpay");
 
@@ -24,7 +23,7 @@ router.get("/usage", auth, async (req,res)=>{
     const plan = PLANS[org.plan];
 
     const used = org.usage.events;
-    const limit = plan.events;
+    const limit = plan.limits.events;
 
     const percent = Math.min(
       Math.round((used / limit) * 100),
@@ -33,6 +32,7 @@ router.get("/usage", auth, async (req,res)=>{
 
     res.json({
       plan: org.plan,
+      planName: plan.name,
       used,
       limit,
       percent
@@ -53,21 +53,19 @@ router.post("/create-order", auth, async (req,res)=>{
 
     const { plan } = req.body;
 
-    const prices = {
-      STARTUP: 499,
-      GROWTH: 1999,
-      BUSINESS: 6999
-    };
+    const planConfig = PLANS[plan];
 
-    const amount = prices[plan];
-
-    if(!amount){
+    if(!planConfig){
       return res.status(400).json({error:"Invalid plan"});
+    }
+
+    if(planConfig.price === 0){
+      return res.status(400).json({error:"Free plan does not require payment"});
     }
 
     const order = await razorpay.orders.create({
 
-      amount: amount * 100, // paise
+      amount: planConfig.price * 100,
       currency: "INR",
       receipt: "upgrade_" + Date.now()
 
@@ -75,7 +73,7 @@ router.post("/create-order", auth, async (req,res)=>{
 
     res.json({
       orderId: order.id,
-      amount,
+      amount: planConfig.price,
       plan
     });
 
@@ -94,7 +92,7 @@ router.post("/upgrade", auth, async (req,res)=>{
 
     const { plan } = req.body;
 
-    if(!VALID_PLANS.includes(plan)){
+    if(!PLANS[plan]){
       return res.status(400).json({error:"Invalid plan"});
     }
 

@@ -1,63 +1,97 @@
 const PLANS = {
+
   FREE: {
+    key: "FREE",
     name: "Free",
     price: 0,
-    events: 10000,
-    projects: 1,
-    retention: 7,
-    features: [
-      "10k events / month",
-      "1 project",
-      "7 day retention",
-      "Error tracking",
-      "API monitoring"
-    ]
+
+    limits: {
+      events: 10000,
+      projects: 1,
+      retentionDays: 7
+    },
+
+    features: {
+      errorTracking: true,
+      apiMonitoring: true,
+      sessionTracking: false,
+      realTimeAlerts: false,
+      advancedAnalytics: false,
+      teamMembers: false,
+      sso: false,
+      prioritySupport: false
+    }
   },
 
   STARTUP: {
+    key: "STARTUP",
     name: "Startup",
     price: 799,
-    events: 100000,
-    projects: 5,
-    retention: 30,
-    features: [
-      "100k events / month",
-      "5 projects",
-      "30 day retention",
-      "Real-time alerts",
-      "Session tracking"
-    ]
+
+    limits: {
+      events: 100000,
+      projects: 5,
+      retentionDays: 30
+    },
+
+    features: {
+      errorTracking: true,
+      apiMonitoring: true,
+      sessionTracking: true,
+      realTimeAlerts: true,
+      advancedAnalytics: false,
+      teamMembers: false,
+      sso: false,
+      prioritySupport: false
+    }
   },
 
   GROWTH: {
+    key: "GROWTH",
     name: "Growth",
     price: 2499,
-    events: 1000000,
-    projects: 20,
-    retention: 90,
-    features: [
-      "1M events / month",
-      "20 projects",
-      "90 day retention",
-      "Advanced analytics",
-      "Team members"
-    ]
+
+    limits: {
+      events: 1000000,
+      projects: 20,
+      retentionDays: 90
+    },
+
+    features: {
+      errorTracking: true,
+      apiMonitoring: true,
+      sessionTracking: true,
+      realTimeAlerts: true,
+      advancedAnalytics: true,
+      teamMembers: true,
+      sso: false,
+      prioritySupport: false
+    }
   },
 
   BUSINESS: {
+    key: "BUSINESS",
     name: "Business",
     price: 8999,
-    events: 10000000,
-    projects: Infinity,
-    retention: 365,
-    features: [
-      "10M events / month",
-      "Unlimited projects",
-      "1 year retention",
-      "SSO login",
-      "Priority support"
-    ]
+
+    limits: {
+      events: 10000000,
+      projects: -1, // unlimited
+      retentionDays: 365
+    },
+
+    features: {
+      errorTracking: true,
+      apiMonitoring: true,
+      sessionTracking: true,
+      realTimeAlerts: true,
+      advancedAnalytics: true,
+      teamMembers: true,
+      sso: true,
+      prioritySupport: true
+    }
   }
+
 };
 
 module.exports = PLANS;

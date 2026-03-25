@@ -19,6 +19,8 @@ const billingRoutes = require("./routes/billing");
 const monitorRoutes = require("./routes/monitorRoutes");
 const statusRoutes = require("./routes/statusRoutes");
 const incidentRoutes = require("./routes/incidentRoutes");
+const siteEvents = require("./routes/siteEvents");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -114,6 +116,7 @@ app.use("/auth", authRoutes);
 app.use("/projects", projectRoutes);
 app.use("/events", eventRoutes);
 app.use("/organizations", organizations);
+app.use("/api/site-events", siteEvents);
 /* -----------------------------
    DATABASE
 ----------------------------- */

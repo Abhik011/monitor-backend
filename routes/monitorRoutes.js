@@ -2,6 +2,14 @@ const express = require("express");
 const router = express.Router();
 
 const Monitor = require("../models/Monitor");
+const MonitorLog = require("../models/MonitorLog");
+const Organization = require("../models/Organization");
+
+const { checkMonitorLimit } = require("../utils/planAccess");
+
+/*
+CREATE MONITOR
+*/
 
 router.post("/", async (req, res) => {
 
@@ -25,6 +33,22 @@ router.post("/", async (req, res) => {
 
     }
 
+    const org = await Organization.findById(organizationId);
+
+    const monitorCount = await Monitor.countDocuments({
+      organizationId,
+      projectId
+    });
+
+    if (!checkMonitorLimit(org.plan, monitorCount)) {
+
+      return res.status(403).json({
+        success: false,
+        message: "Monitor limit reached for your plan"
+      });
+
+    }
+
     const monitor = await Monitor.create({
 
       organizationId,
@@ -44,6 +68,8 @@ router.post("/", async (req, res) => {
 
   } catch (error) {
 
+    console.error(error);
+
     res.status(500).json({
       success: false,
       message: error.message
@@ -52,19 +78,9 @@ router.post("/", async (req, res) => {
   }
 
 });
-router.get("/:id/logs", async (req, res) => {
 
-  const logs = await MonitorLog
-    .find({ monitorId: req.params.id })
-    .sort({ createdAt: -1 })
-    .limit(50);
-
-  res.json({ data: logs });
-
-});
 /*
 GET ALL MONITORS
-GET /api/monitors
 */
 
 router.get("/", async (req, res) => {
@@ -97,7 +113,6 @@ router.get("/", async (req, res) => {
 
 /*
 GET SINGLE MONITOR
-GET /api/monitors/:id
 */
 
 router.get("/:id", async (req, res) => {
@@ -137,6 +152,33 @@ router.get("/:id", async (req, res) => {
 
 });
 
+/*
+GET MONITOR LOGS
+*/
+
+router.get("/:id/logs", async (req, res) => {
+
+  try {
+
+    const logs = await MonitorLog
+      .find({ monitorId: req.params.id })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json({ data: logs });
+
+  } catch (err) {
+
+    res.status(500).json({ error: "Failed to fetch logs" });
+
+  }
+
+});
+
+/*
+DELETE MONITOR
+*/
+
 router.delete("/:id", async (req, res) => {
 
   try {
@@ -164,4 +206,5 @@ router.delete("/:id", async (req, res) => {
   }
 
 });
+
 module.exports = router;

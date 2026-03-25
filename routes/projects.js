@@ -3,7 +3,10 @@ const router = express.Router();
 const crypto = require("crypto");
 
 const Project = require("../models/Project");
+const Organization = require("../models/Organization");
+
 const auth = require("../middleware/auth");
+const { checkProjectLimit } = require("../utils/planAccess");
 
 /* GENERATE API KEY */
 
@@ -11,7 +14,9 @@ function generateApiKey() {
   return "MC_LIVE_" + crypto.randomBytes(16).toString("hex");
 }
 
-/* CREATE PROJECT */
+/* -----------------------------
+   CREATE PROJECT
+----------------------------- */
 
 router.post("/", auth, async (req, res) => {
 
@@ -20,7 +25,34 @@ router.post("/", auth, async (req, res) => {
     const { name, organizationId } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: "Name required" });
+      return res.status(400).json({
+        error: "Name required"
+      });
+    }
+
+    const org = await Organization.findById(organizationId);
+
+    if (!org) {
+      return res.status(404).json({
+        error: "Organization not found"
+      });
+    }
+
+    /* COUNT CURRENT PROJECTS */
+
+    const projectCount = await Project.countDocuments({
+      organizationId
+    });
+
+    /* PLAN LIMIT CHECK */
+
+    if (!checkProjectLimit(org.plan, projectCount)) {
+
+      return res.status(403).json({
+        error: "Project limit reached for your plan",
+        upgrade: true
+      });
+
     }
 
     const apiKey = generateApiKey();
@@ -32,6 +64,7 @@ router.post("/", auth, async (req, res) => {
     });
 
     res.json({
+      success: true,
       projectId: project._id,
       apiKey
     });
@@ -39,13 +72,18 @@ router.post("/", auth, async (req, res) => {
   } catch (err) {
 
     console.error(err);
-    res.status(500).json({ error: "Project creation failed" });
+
+    res.status(500).json({
+      error: "Project creation failed"
+    });
 
   }
 
 });
 
-/* GET PROJECTS */
+/* -----------------------------
+   GET PROJECTS
+----------------------------- */
 
 router.get("/", auth, async (req, res) => {
 
@@ -54,17 +92,24 @@ router.get("/", auth, async (req, res) => {
     const organizationId = req.query.organizationId;
 
     if (!organizationId) {
-      return res.status(400).json({ error: "organizationId required" });
+      return res.status(400).json({
+        error: "organizationId required"
+      });
     }
 
     const projects = await Project.find({ organizationId });
 
-    res.json({ projects });
+    res.json({
+      projects
+    });
 
   } catch (err) {
 
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch projects" });
+
+    res.status(500).json({
+      error: "Failed to fetch projects"
+    });
 
   }
 
